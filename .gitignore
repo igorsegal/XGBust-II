@@ -1,0 +1,7 @@
+﻿1DataFiles/binance/
+0 kapellmeister/
+1DataFiles/raw/
+*.exe
+*.bat
+.vs/
+.vscode/
