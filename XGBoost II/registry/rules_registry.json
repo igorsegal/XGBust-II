@@ -1,0 +1,3114 @@
+{
+ "registry_version": 2,
+ "description": "Реестр торговых правил XGBoost-edge. Правила проверки: SVOD_PRAVIL.md (критерии от 2026-11-24, скользящие окна и порядок экзамена утверждены 2026-11-25).",
+ "defaults": {
+  "exits": {
+   "hold_bars": 24,
+   "stop_atr_mult": 2.0,
+   "atr_period": 14
+  },
+  "costs": {
+   "commission_per_lot_usd": 7,
+   "lot_units": 100000,
+   "spread": "по бару из файла истории",
+   "lot_units_gold": 100
+  },
+  "split": {
+   "train_months": 6,
+   "test_months": 2,
+   "step_months": 2,
+   "dev_from": "2020-01",
+   "exam_from": "2025-01",
+   "exam_to": "2026-04"
+  },
+  "criteria": {
+   "min_trades": 100,
+   "min_profit_factor": 1.3,
+   "net_profit_positive": true
+  }
+ },
+ "rules": [
+  {
+   "id": "HEDGE_ENS_01",
+   "name": "Hedge: ансамбль из 5 простых сигналов с адаптивными весами",
+   "source": {
+    "type": "article",
+    "article_id": 25064,
+    "url": "https://www.mql5.com/en/articles/25064",
+    "title": "Hedge (Multiplicative Weights): Blending a Handful of Simple Trading Rules Online",
+    "year": 2026,
+    "spec_file": "data_test/specs/25064.json"
+   },
+   "status": "tested_fail",
+   "enabled_by_default": false,
+   "direction": "both",
+   "timeframes": [
+    "H1",
+    "M15"
+   ],
+   "pairs": [
+    "EURUSD",
+    "GBPUSD",
+    "XAUUSD"
+   ],
+   "entry_long": "Сумма w_i*v_i >= confidence (по умолчанию 0.20)",
+   "entry_short": "Сумма w_i*v_i <= -confidence",
+   "exit_rule": "не указан в статье: общий выход тестера (держать hold_bars баров)",
+   "stop_rule": "не указан в статье: общий стоп тестера (stop_atr_mult * ATR)",
+   "description": "5 экспертов голосуют -1/0/+1 на закрытии бара: пересечение MA, возврат RSI, пробой Bollinger, знак гистограммы MACD, пробой Donchian. Веса w_i стартуют с 1/5 и после каждого бара умножаются на exp(-eta*loss), loss = 0.5 - 0.5*голос*знак_движения_следующего_бара, затем нормируются. eta = sqrt(8*ln(5)/T).",
+   "params": {
+    "ma_fast": {
+     "type": "int",
+     "default": 10,
+     "min": 2,
+     "max": 200,
+     "note": "период быстрой SMA"
+    },
+    "ma_slow": {
+     "type": "int",
+     "default": 50,
+     "min": 3,
+     "max": 500,
+     "note": "период медленной SMA"
+    },
+    "rsi_period": {
+     "type": "int",
+     "default": 14,
+     "min": 2,
+     "max": 100,
+     "note": "RSI Уайлдера"
+    },
+    "rsi_lower": {
+     "type": "float",
+     "default": 30.0,
+     "min": 1,
+     "max": 49,
+     "note": "ниже: голос +1"
+    },
+    "rsi_upper": {
+     "type": "float",
+     "default": 70.0,
+     "min": 51,
+     "max": 99,
+     "note": "выше: голос -1"
+    },
+    "bb_period": {
+     "type": "int",
+     "default": 20,
+     "min": 2,
+     "max": 200,
+     "note": "SMA и среднеквадратичное отклонение"
+    },
+    "bb_deviation": {
+     "type": "float",
+     "default": 2.0,
+     "min": 0.5,
+     "max": 5.0,
+     "note": "ширина полос"
+    },
+    "macd_fast": {
+     "type": "int",
+     "default": 12,
+     "min": 2,
+     "max": 100,
+     "note": ""
+    },
+    "macd_slow": {
+     "type": "int",
+     "default": 26,
+     "min": 3,
+     "max": 200,
+     "note": ""
+    },
+    "macd_signal": {
+     "type": "int",
+     "default": 9,
+     "min": 2,
+     "max": 100,
+     "note": ""
+    },
+    "donchian_period": {
+     "type": "int",
+     "default": 20,
+     "min": 2,
+     "max": 200,
+     "note": ""
+    },
+    "donchian_include_current": {
+     "type": "bool",
+     "default": 1,
+     "min": 0,
+     "max": 1,
+     "note": "1 = окно включает текущий бар (как в статье, сигнал почти не срабатывает), 0 = только предыдущие бары"
+    },
+    "regret_horizon": {
+     "type": "int",
+     "default": 2000,
+     "min": 100,
+     "max": 100000,
+     "note": "T в формуле eta"
+    },
+    "confidence": {
+     "type": "float",
+     "default": 0.2,
+     "min": 0.01,
+     "max": 0.99,
+     "note": "порог ансамбля для входа (допущение судьи)"
+    }
+   },
+   "assumptions": [
+    "Тип MA в статье не назван: взята простая (SMA).",
+    "Порог входа 0.20 — допущение судьи, в тексте статьи явной формулы входа по порогу нет.",
+    "Знак движения sign(t) берётся как знак (close[t]-close[t-1]); голоса, поданные на баре t-1, оцениваются по движению бара t (причинная версия формулы loss).",
+    "Donchian: окно включает текущий бар, как в статье; вариант без текущего бара включается параметром donchian_include_current=0."
+   ],
+   "implementation": {
+    "language": "cpp",
+    "file": "tester/rules/hedge.h",
+    "factory": "make_hedge"
+   },
+   "audit": {
+    "lookahead": "ok",
+    "duplicate_of": null,
+    "constitution_ok": true,
+    "notes": [
+     "Автор сообщает: все 18 тестов статьи завершились убытком; тестируем только исполнимость правила.",
+     "Проверка причинности (selftest): сигналы до среза не меняются при порче будущих баров, расхождений 0 (2026-11-24).",
+     "Независимая проверка на отдельном коде Python: EURUSD H1, чистый отрезок совпал точно: 176 сделок, нетто 146.2 пп, PF 1.062.",
+     "Наблюдение: веса Hedge за годы истории схлопываются в одного эксперта (к концу истории RSI имеет вес 1.000), поэтому ансамбль ведёт себя как один RSI(14) 30/70 на возврат; параметры confidence и donchian_include_current на результат почти не влияют."
+    ]
+   },
+   "results": [
+    {
+     "date": "2026-11-24",
+     "test": "hedge_EURUSD_H1",
+     "role": "primary",
+     "pair": "EURUSD",
+     "timeframe": "H1",
+     "period": "2021-08-23 .. 2026-08-22",
+     "overrides": "",
+     "clean": {
+      "segment": "clean",
+      "trades": 176,
+      "win_pct": 40.34,
+      "net_pips": 146.2,
+      "profit_factor": 1.062,
+      "avg_R": 0.0059,
+      "max_dd_pips": 490.6,
+      "pos_quarters": "3/5"
+     },
+     "validation": {
+      "segment": "validation",
+      "trades": 168,
+      "win_pct": 39.29,
+      "net_pips": -628.9,
+      "profit_factor": 0.801,
+      "avg_R": -0.0677,
+      "max_dd_pips": 1001.9,
+      "pos_quarters": "1/5"
+     },
+     "train": {
+      "segment": "train",
+      "trades": 531,
+      "win_pct": 38.79,
+      "net_pips": 243.0,
+      "profit_factor": 1.028,
+      "avg_R": 0.0081,
+      "max_dd_pips": 1156.3,
+      "pos_quarters": "6/13"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 1.0"
+    },
+    {
+     "date": "2026-11-24",
+     "test": "hedge_EURUSD_H1_conf040",
+     "role": "sensitivity",
+     "pair": "EURUSD",
+     "timeframe": "H1",
+     "period": "2021-08-23 .. 2026-08-22",
+     "overrides": "confidence=0.400000",
+     "clean": {
+      "segment": "clean",
+      "trades": 176,
+      "win_pct": 40.34,
+      "net_pips": 146.2,
+      "profit_factor": 1.062,
+      "avg_R": 0.0059,
+      "max_dd_pips": 490.6,
+      "pos_quarters": "3/5"
+     },
+     "validation": {
+      "segment": "validation",
+      "trades": 168,
+      "win_pct": 39.29,
+      "net_pips": -628.9,
+      "profit_factor": 0.801,
+      "avg_R": -0.0677,
+      "max_dd_pips": 1001.9,
+      "pos_quarters": "1/5"
+     },
+     "train": {
+      "segment": "train",
+      "trades": 531,
+      "win_pct": 38.79,
+      "net_pips": 243.0,
+      "profit_factor": 1.028,
+      "avg_R": 0.0081,
+      "max_dd_pips": 1156.3,
+      "pos_quarters": "6/13"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 1.0"
+    },
+    {
+     "date": "2026-11-24",
+     "test": "hedge_EURUSD_H1_conf060",
+     "role": "sensitivity",
+     "pair": "EURUSD",
+     "timeframe": "H1",
+     "period": "2021-08-23 .. 2026-08-22",
+     "overrides": "confidence=0.600000",
+     "clean": {
+      "segment": "clean",
+      "trades": 176,
+      "win_pct": 40.34,
+      "net_pips": 146.2,
+      "profit_factor": 1.062,
+      "avg_R": 0.0059,
+      "max_dd_pips": 490.6,
+      "pos_quarters": "3/5"
+     },
+     "validation": {
+      "segment": "validation",
+      "trades": 168,
+      "win_pct": 39.29,
+      "net_pips": -628.9,
+      "profit_factor": 0.801,
+      "avg_R": -0.0677,
+      "max_dd_pips": 1001.9,
+      "pos_quarters": "1/5"
+     },
+     "train": {
+      "segment": "train",
+      "trades": 531,
+      "win_pct": 38.79,
+      "net_pips": 243.0,
+      "profit_factor": 1.028,
+      "avg_R": 0.0081,
+      "max_dd_pips": 1156.3,
+      "pos_quarters": "6/13"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 1.0"
+    },
+    {
+     "date": "2026-11-24",
+     "test": "hedge_EURUSD_H1_don_excl",
+     "role": "sensitivity",
+     "pair": "EURUSD",
+     "timeframe": "H1",
+     "period": "2021-08-23 .. 2026-08-22",
+     "overrides": "donchian_include_current=0.000000",
+     "clean": {
+      "segment": "clean",
+      "trades": 176,
+      "win_pct": 40.34,
+      "net_pips": 146.2,
+      "profit_factor": 1.062,
+      "avg_R": 0.0059,
+      "max_dd_pips": 490.6,
+      "pos_quarters": "3/5"
+     },
+     "validation": {
+      "segment": "validation",
+      "trades": 168,
+      "win_pct": 39.29,
+      "net_pips": -628.9,
+      "profit_factor": 0.801,
+      "avg_R": -0.0677,
+      "max_dd_pips": 1001.9,
+      "pos_quarters": "1/5"
+     },
+     "train": {
+      "segment": "train",
+      "trades": 531,
+      "win_pct": 38.79,
+      "net_pips": 243.0,
+      "profit_factor": 1.028,
+      "avg_R": 0.0081,
+      "max_dd_pips": 1156.3,
+      "pos_quarters": "6/13"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 1.0"
+    },
+    {
+     "date": "2026-11-24",
+     "test": "hedge_EURUSD_M15",
+     "role": "primary",
+     "pair": "EURUSD",
+     "timeframe": "M15",
+     "period": "2021-08-23 .. 2026-08-22",
+     "overrides": "",
+     "clean": {
+      "segment": "clean",
+      "trades": 630,
+      "win_pct": 34.6,
+      "net_pips": -765.9,
+      "profit_factor": 0.847,
+      "avg_R": -0.1215,
+      "max_dd_pips": 825.5,
+      "pos_quarters": "1/5"
+     },
+     "validation": {
+      "segment": "validation",
+      "trades": 626,
+      "win_pct": 39.3,
+      "net_pips": -145.2,
+      "profit_factor": 0.975,
+      "avg_R": -0.024,
+      "max_dd_pips": 643.0,
+      "pos_quarters": "2/5"
+     },
+     "train": {
+      "segment": "train",
+      "trades": 1914,
+      "win_pct": 35.74,
+      "net_pips": -502.0,
+      "profit_factor": 0.97,
+      "avg_R": -0.0269,
+      "max_dd_pips": 1087.6,
+      "pos_quarters": "5/13"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 1.0"
+    },
+    {
+     "date": "2026-11-24",
+     "test": "hedge_GBPUSD_H1",
+     "role": "stability",
+     "pair": "GBPUSD",
+     "timeframe": "H1",
+     "period": "2021-08-23 .. 2026-08-22",
+     "overrides": "",
+     "clean": {
+      "segment": "clean",
+      "trades": 161,
+      "win_pct": 34.78,
+      "net_pips": -254.3,
+      "profit_factor": 0.915,
+      "avg_R": -0.0797,
+      "max_dd_pips": 682.3,
+      "pos_quarters": "2/5"
+     },
+     "validation": {
+      "segment": "validation",
+      "trades": 184,
+      "win_pct": 33.7,
+      "net_pips": -1078.2,
+      "profit_factor": 0.741,
+      "avg_R": -0.1572,
+      "max_dd_pips": 1483.3,
+      "pos_quarters": "1/5"
+     },
+     "train": {
+      "segment": "train",
+      "trades": 533,
+      "win_pct": 38.46,
+      "net_pips": 1344.2,
+      "profit_factor": 1.117,
+      "avg_R": 0.0291,
+      "max_dd_pips": 623.8,
+      "pos_quarters": "7/13"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 1.0"
+    },
+    {
+     "date": "2026-11-24",
+     "test": "hedge_GBPUSD_M15",
+     "role": "stability",
+     "pair": "GBPUSD",
+     "timeframe": "M15",
+     "period": "2021-08-23 .. 2026-08-22",
+     "overrides": "",
+     "clean": {
+      "segment": "clean",
+      "trades": 630,
+      "win_pct": 34.29,
+      "net_pips": -1099.5,
+      "profit_factor": 0.829,
+      "avg_R": -0.1403,
+      "max_dd_pips": 1198.8,
+      "pos_quarters": "0/5"
+     },
+     "validation": {
+      "segment": "validation",
+      "trades": 634,
+      "win_pct": 37.38,
+      "net_pips": -869.6,
+      "profit_factor": 0.878,
+      "avg_R": -0.0599,
+      "max_dd_pips": 1167.6,
+      "pos_quarters": "2/5"
+     },
+     "train": {
+      "segment": "train",
+      "trades": 1846,
+      "win_pct": 36.29,
+      "net_pips": -1360.0,
+      "profit_factor": 0.938,
+      "avg_R": -0.0257,
+      "max_dd_pips": 2200.2,
+      "pos_quarters": "5/13"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 1.0"
+    },
+    {
+     "date": "2026-11-25",
+     "test": "hedge_EURUSD_H1_conf040_wf",
+     "mode": "dev",
+     "role": "sensitivity",
+     "pair": "EURUSD",
+     "timeframe": "H1",
+     "scheme": "6+2",
+     "overrides": "confidence=0.400000",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-07-01",
+      "to": "2024-12-31",
+      "trades": 996,
+      "win_pct": 37.95,
+      "net_pips": 197.8,
+      "profit_factor": 1.013,
+      "avg_R": -0.0099,
+      "max_dd_pips": 1453.4,
+      "pos_windows": "17/27"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    },
+    {
+     "date": "2026-11-25",
+     "test": "hedge_EURUSD_H1_conf060_wf",
+     "mode": "dev",
+     "role": "sensitivity",
+     "pair": "EURUSD",
+     "timeframe": "H1",
+     "scheme": "6+2",
+     "overrides": "confidence=0.600000",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-07-01",
+      "to": "2024-12-31",
+      "trades": 909,
+      "win_pct": 37.4,
+      "net_pips": 160.8,
+      "profit_factor": 1.011,
+      "avg_R": -0.0115,
+      "max_dd_pips": 1490.4,
+      "pos_windows": "16/27"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    },
+    {
+     "date": "2026-11-25",
+     "test": "hedge_EURUSD_H1_don_excl_wf",
+     "mode": "dev",
+     "role": "sensitivity",
+     "pair": "EURUSD",
+     "timeframe": "H1",
+     "scheme": "6+2",
+     "overrides": "donchian_include_current=0.000000",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-07-01",
+      "to": "2024-12-31",
+      "trades": 1056,
+      "win_pct": 37.31,
+      "net_pips": -119.2,
+      "profit_factor": 0.993,
+      "avg_R": -0.0277,
+      "max_dd_pips": 1770.4,
+      "pos_windows": "15/27"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    },
+    {
+     "date": "2026-11-25",
+     "test": "hedge_EURUSD_H1_wf",
+     "mode": "dev",
+     "role": "primary",
+     "pair": "EURUSD",
+     "timeframe": "H1",
+     "scheme": "6+2",
+     "overrides": "",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-07-01",
+      "to": "2024-12-31",
+      "trades": 1057,
+      "win_pct": 37.28,
+      "net_pips": -77.4,
+      "profit_factor": 0.995,
+      "avg_R": -0.0263,
+      "max_dd_pips": 1728.6,
+      "pos_windows": "15/27"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    },
+    {
+     "date": "2026-11-25",
+     "test": "hedge_EURUSD_M15_wf",
+     "mode": "dev",
+     "role": "primary",
+     "pair": "EURUSD",
+     "timeframe": "M15",
+     "scheme": "6+2",
+     "overrides": "",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-07-01",
+      "to": "2024-12-31",
+      "trades": 2920,
+      "win_pct": 35.45,
+      "net_pips": -1715.0,
+      "profit_factor": 0.931,
+      "avg_R": -0.0471,
+      "max_dd_pips": 2345.1,
+      "pos_windows": "11/27"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    },
+    {
+     "date": "2026-11-25",
+     "test": "hedge_GBPUSD_H1_wf",
+     "mode": "dev",
+     "role": "stability",
+     "pair": "GBPUSD",
+     "timeframe": "H1",
+     "scheme": "6+2",
+     "overrides": "",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-07-01",
+      "to": "2024-12-31",
+      "trades": 923,
+      "win_pct": 38.14,
+      "net_pips": 1268.0,
+      "profit_factor": 1.064,
+      "avg_R": 0.0117,
+      "max_dd_pips": 1065.4,
+      "pos_windows": "15/27"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    },
+    {
+     "date": "2026-11-25",
+     "test": "hedge_GBPUSD_M15_wf",
+     "mode": "dev",
+     "role": "stability",
+     "pair": "GBPUSD",
+     "timeframe": "M15",
+     "scheme": "6+2",
+     "overrides": "",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-07-01",
+      "to": "2024-12-31",
+      "trades": 2929,
+      "win_pct": 34.41,
+      "net_pips": -4146.6,
+      "profit_factor": 0.882,
+      "avg_R": -0.0727,
+      "max_dd_pips": 5018.9,
+      "pos_windows": "9/27"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    }
+   ]
+  },
+  {
+   "id": "PROTO_H1_BUY_01",
+   "name": "Прототип майнера H1 BUY #1",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H1.mqh",
+    "tf": "H1",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "long",
+   "timeframes": [
+    "H1"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "tripleAlign == -1 AND MACD_Delta_Norm >= thr_1 AND RSI8 >= thr_2",
+   "entry_short": "",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": 0.511325,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог MACD_Delta_Norm >="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": 61.774742,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог RSI8 >="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": null,
+    "oos_wr": 50.7,
+    "oos_trades": 836,
+    "est_oos_pf": 1.49
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": null,
+    "constitution_ok": false,
+    "notes": [
+     "доля побед на OOS 50.7% < 56% (требование AGENTS.md п.3.2); положительное матожидание не доказано: PF в файле оценочный (формула), сделки не проигрывались",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H1_BUY_02",
+   "name": "Прототип майнера H1 BUY #2",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H1.mqh",
+    "tf": "H1",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "long",
+   "timeframes": [
+    "H1"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "tripleAlign == -1 AND ATR14 <= thr_1 AND ATR_Ratio >= thr_2",
+   "entry_short": "",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": 0.000735,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог ATR14 <="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": 0.927674,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог ATR_Ratio >="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": null,
+    "oos_wr": 49.0,
+    "oos_trades": 3189,
+    "est_oos_pf": 1.39
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": null,
+    "constitution_ok": false,
+    "notes": [
+     "доля побед на OOS 49.0% < 56% (требование AGENTS.md п.3.2); положительное матожидание не доказано: PF в файле оценочный (формула), сделки не проигрывались",
+     "использует сырой ATR14: порог привязан к цене конкретной пары (не scale-invariant)",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H1_BUY_03",
+   "name": "Прототип майнера H1 BUY #3",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H1.mqh",
+    "tf": "H1",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "long",
+   "timeframes": [
+    "H1"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "tripleAlign == -1 AND CCI5 >= thr_1 AND ATR14 <= thr_2",
+   "entry_short": "",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": 32.803585,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог CCI5 >="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": 0.000735,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог ATR14 <="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": null,
+    "oos_wr": 49.2,
+    "oos_trades": 2159,
+    "est_oos_pf": 1.4
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": null,
+    "constitution_ok": false,
+    "notes": [
+     "доля побед на OOS 49.2% < 56% (требование AGENTS.md п.3.2); положительное матожидание не доказано: PF в файле оценочный (формула), сделки не проигрывались",
+     "использует сырой ATR14: порог привязан к цене конкретной пары (не scale-invariant)",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H1_BUY_04",
+   "name": "Прототип майнера H1 BUY #4",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H1.mqh",
+    "tf": "H1",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "long",
+   "timeframes": [
+    "H1"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "tripleAlign == -1 AND MACD_Delta_Norm >= thr_1 AND ATR_Ratio >= thr_2",
+   "entry_short": "",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": 0.511325,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог MACD_Delta_Norm >="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": 1.283208,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог ATR_Ratio >="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": null,
+    "oos_wr": 50.1,
+    "oos_trades": 819,
+    "est_oos_pf": 1.45
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": null,
+    "constitution_ok": false,
+    "notes": [
+     "доля побед на OOS 50.1% < 56% (требование AGENTS.md п.3.2); положительное матожидание не доказано: PF в файле оценочный (формула), сделки не проигрывались",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H1_BUY_05",
+   "name": "Прототип майнера H1 BUY #5",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H1.mqh",
+    "tf": "H1",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "long",
+   "timeframes": [
+    "H1"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "tripleAlign == -1 AND MACD_Hist_Norm <= thr_1 AND RSI8 >= thr_2",
+   "entry_short": "",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": -5.078954,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог MACD_Hist_Norm <="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": 61.774742,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог RSI8 >="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": null,
+    "oos_wr": 49.9,
+    "oos_trades": 713,
+    "est_oos_pf": 1.45
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": null,
+    "constitution_ok": false,
+    "notes": [
+     "доля побед на OOS 49.9% < 56% (требование AGENTS.md п.3.2); положительное матожидание не доказано: PF в файле оценочный (формула), сделки не проигрывались",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H1_BUY_06",
+   "name": "Прототип майнера H1 BUY #6",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H1.mqh",
+    "tf": "H1",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "long",
+   "timeframes": [
+    "H1"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "tripleAlign == -1 AND OBV_Slope_Norm >= thr_1 AND ATR14 <= thr_2",
+   "entry_short": "",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": 0.216168,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог OBV_Slope_Norm >="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": 0.000735,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог ATR14 <="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": null,
+    "oos_wr": 48.8,
+    "oos_trades": 1165,
+    "est_oos_pf": 1.38
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": null,
+    "constitution_ok": false,
+    "notes": [
+     "доля побед на OOS 48.8% < 56% (требование AGENTS.md п.3.2); положительное матожидание не доказано: PF в файле оценочный (формула), сделки не проигрывались",
+     "использует сырой ATR14: порог привязан к цене конкретной пары (не scale-invariant)",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H1_BUY_07",
+   "name": "Прототип майнера H1 BUY #7",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H1.mqh",
+    "tf": "H1",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "long",
+   "timeframes": [
+    "H1"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "tripleAlign == -1 AND CCI8 >= thr_1 AND ATR14 <= thr_2",
+   "entry_short": "",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": -64.138756,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог CCI8 >="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": 0.000735,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог ATR14 <="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": null,
+    "oos_wr": 47.5,
+    "oos_trades": 4493,
+    "est_oos_pf": 1.31
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": null,
+    "constitution_ok": false,
+    "notes": [
+     "доля побед на OOS 47.5% < 56% (требование AGENTS.md п.3.2); положительное матожидание не доказано: PF в файле оценочный (формула), сделки не проигрывались",
+     "использует сырой ATR14: порог привязан к цене конкретной пары (не scale-invariant)",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H1_BUY_08",
+   "name": "Прототип майнера H1 BUY #8",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H1.mqh",
+    "tf": "H1",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "long",
+   "timeframes": [
+    "H1"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "tripleAlign == -1 AND RSI5 >= thr_1 AND ATR14 <= thr_2",
+   "entry_short": "",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": 45.794392,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог RSI5 >="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": 0.000735,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог ATR14 <="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": null,
+    "oos_wr": 47.8,
+    "oos_trades": 2929,
+    "est_oos_pf": 1.33
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": null,
+    "constitution_ok": false,
+    "notes": [
+     "доля побед на OOS 47.8% < 56% (требование AGENTS.md п.3.2); положительное матожидание не доказано: PF в файле оценочный (формула), сделки не проигрывались",
+     "использует сырой ATR14: порог привязан к цене конкретной пары (не scale-invariant)",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H1_BUY_09",
+   "name": "Прототип майнера H1 BUY #9",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H1.mqh",
+    "tf": "H1",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "long",
+   "timeframes": [
+    "H1"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "tripleAlign == -1 AND RSI8 >= thr_1 AND ATR14 <= thr_2",
+   "entry_short": "",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": 61.774742,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог RSI8 >="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": 0.001331,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог ATR14 <="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": null,
+    "oos_wr": 48.6,
+    "oos_trades": 1119,
+    "est_oos_pf": 1.37
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": null,
+    "constitution_ok": false,
+    "notes": [
+     "доля побед на OOS 48.6% < 56% (требование AGENTS.md п.3.2); положительное матожидание не доказано: PF в файле оценочный (формула), сделки не проигрывались",
+     "использует сырой ATR14: порог привязан к цене конкретной пары (не scale-invariant)",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H1_BUY_10",
+   "name": "Прототип майнера H1 BUY #10",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H1.mqh",
+    "tf": "H1",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "long",
+   "timeframes": [
+    "H1"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "tripleAlign == -1 AND CCI8 >= thr_1 AND OBV_Slope_Norm <= thr_2",
+   "entry_short": "",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": 104.060562,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог CCI8 >="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": 0.092432,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог OBV_Slope_Norm <="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": null,
+    "oos_wr": 49.6,
+    "oos_trades": 375,
+    "est_oos_pf": 1.43
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": null,
+    "constitution_ok": false,
+    "notes": [
+     "доля побед на OOS 49.6% < 56% (требование AGENTS.md п.3.2); положительное матожидание не доказано: PF в файле оценочный (формула), сделки не проигрывались",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H4_BUY_01",
+   "name": "Прототип майнера H4 BUY #1",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H4.mqh",
+    "tf": "H4",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "long",
+   "timeframes": [
+    "H4"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "tripleAlign == -1 AND MACD_Hist_Norm <= thr_1 AND Price_vs_HTF_EMA21_Norm >= thr_2",
+   "entry_short": "",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": -2.374708,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог MACD_Hist_Norm <="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": -0.641112,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог Price_vs_HTF_EMA21_Norm >="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": 47.0,
+    "oos_wr": 52.2,
+    "oos_trades": 1865,
+    "est_oos_pf": 1.58
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": null,
+    "constitution_ok": false,
+    "notes": [
+     "доля побед на OOS 52.2% < 56% (требование AGENTS.md п.3.2); положительное матожидание не доказано: PF в файле оценочный (формула), сделки не проигрывались",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H4_BUY_02",
+   "name": "Прототип майнера H4 BUY #2",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H4.mqh",
+    "tf": "H4",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "long",
+   "timeframes": [
+    "H4"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "tripleAlign == -1 AND MACD_Hist_Norm <= thr_1 AND HTF_EMA21_Slope_Norm >= thr_2",
+   "entry_short": "",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": -2.374708,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог MACD_Hist_Norm <="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": -0.064111,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог HTF_EMA21_Slope_Norm >="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": 47.0,
+    "oos_wr": 52.2,
+    "oos_trades": 1865,
+    "est_oos_pf": 1.58
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": "PROTO_H4_BUY_01",
+    "constitution_ok": false,
+    "notes": [
+     "доля побед на OOS 52.2% < 56% (требование AGENTS.md п.3.2); положительное матожидание не доказано: PF в файле оценочный (формула), сделки не проигрывались",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая",
+     "дубль PROTO_H4_BUY_01: те же число сделок и доля побед на OOS"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H4_BUY_03",
+   "name": "Прототип майнера H4 BUY #3",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H4.mqh",
+    "tf": "H4",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "long",
+   "timeframes": [
+    "H4"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "tripleAlign == -1 AND Stoch_K >= thr_1 AND HTF_EMA21_Slope_Norm >= thr_2",
+   "entry_short": "",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": 46.666668,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог Stoch_K >="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": -0.064111,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог HTF_EMA21_Slope_Norm >="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": 47.8,
+    "oos_wr": 54.1,
+    "oos_trades": 455,
+    "est_oos_pf": 1.71
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": null,
+    "constitution_ok": false,
+    "notes": [
+     "доля побед на OOS 54.1% < 56% (требование AGENTS.md п.3.2); положительное матожидание не доказано: PF в файле оценочный (формула), сделки не проигрывались",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H4_BUY_04",
+   "name": "Прототип майнера H4 BUY #4",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H4.mqh",
+    "tf": "H4",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "long",
+   "timeframes": [
+    "H4"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "tripleAlign == -1 AND Stoch_K >= thr_1 AND Price_vs_HTF_EMA21_Norm >= thr_2",
+   "entry_short": "",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": 46.666668,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог Stoch_K >="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": -0.641112,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог Price_vs_HTF_EMA21_Norm >="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": 47.8,
+    "oos_wr": 54.1,
+    "oos_trades": 455,
+    "est_oos_pf": 1.71
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": "PROTO_H4_BUY_03",
+    "constitution_ok": false,
+    "notes": [
+     "доля побед на OOS 54.1% < 56% (требование AGENTS.md п.3.2); положительное матожидание не доказано: PF в файле оценочный (формула), сделки не проигрывались",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая",
+     "дубль PROTO_H4_BUY_03: те же число сделок и доля побед на OOS"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H4_BUY_05",
+   "name": "Прототип майнера H4 BUY #5",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H4.mqh",
+    "tf": "H4",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "long",
+   "timeframes": [
+    "H4"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "tripleAlign == -1 AND Stoch_D >= thr_1 AND HTF_EMA21_Slope_Norm >= thr_2",
+   "entry_short": "",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": 46.872471,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог Stoch_D >="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": -0.064111,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог HTF_EMA21_Slope_Norm >="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": 47.9,
+    "oos_wr": 52.7,
+    "oos_trades": 546,
+    "est_oos_pf": 1.62
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": null,
+    "constitution_ok": false,
+    "notes": [
+     "доля побед на OOS 52.7% < 56% (требование AGENTS.md п.3.2); положительное матожидание не доказано: PF в файле оценочный (формула), сделки не проигрывались",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H4_BUY_06",
+   "name": "Прототип майнера H4 BUY #6",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H4.mqh",
+    "tf": "H4",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "long",
+   "timeframes": [
+    "H4"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "tripleAlign == -1 AND Stoch_D >= thr_1 AND Price_vs_HTF_EMA21_Norm >= thr_2",
+   "entry_short": "",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": 46.872471,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог Stoch_D >="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": -0.641112,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог Price_vs_HTF_EMA21_Norm >="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": 47.9,
+    "oos_wr": 52.7,
+    "oos_trades": 546,
+    "est_oos_pf": 1.62
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": "PROTO_H4_BUY_05",
+    "constitution_ok": false,
+    "notes": [
+     "доля побед на OOS 52.7% < 56% (требование AGENTS.md п.3.2); положительное матожидание не доказано: PF в файле оценочный (формула), сделки не проигрывались",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая",
+     "дубль PROTO_H4_BUY_05: те же число сделок и доля побед на OOS"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H4_BUY_07",
+   "name": "Прототип майнера H4 BUY #7",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H4.mqh",
+    "tf": "H4",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "long",
+   "timeframes": [
+    "H4"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "tripleAlign == -1 AND MACD_Delta_Norm >= thr_1 AND HTF_EMA21_Slope_Norm >= thr_2",
+   "entry_short": "",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": 0.236043,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог MACD_Delta_Norm >="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": -0.064111,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог HTF_EMA21_Slope_Norm >="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": 47.2,
+    "oos_wr": 51.2,
+    "oos_trades": 1737,
+    "est_oos_pf": 1.52
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": null,
+    "constitution_ok": false,
+    "notes": [
+     "доля побед на OOS 51.2% < 56% (требование AGENTS.md п.3.2); положительное матожидание не доказано: PF в файле оценочный (формула), сделки не проигрывались",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H4_BUY_08",
+   "name": "Прототип майнера H4 BUY #8",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H4.mqh",
+    "tf": "H4",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "long",
+   "timeframes": [
+    "H4"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "tripleAlign == -1 AND MACD_Delta_Norm >= thr_1 AND Price_vs_HTF_EMA21_Norm >= thr_2",
+   "entry_short": "",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": 0.236043,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог MACD_Delta_Norm >="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": -0.641112,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог Price_vs_HTF_EMA21_Norm >="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": 47.2,
+    "oos_wr": 51.2,
+    "oos_trades": 1737,
+    "est_oos_pf": 1.52
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": "PROTO_H4_BUY_07",
+    "constitution_ok": false,
+    "notes": [
+     "доля побед на OOS 51.2% < 56% (требование AGENTS.md п.3.2); положительное матожидание не доказано: PF в файле оценочный (формула), сделки не проигрывались",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая",
+     "дубль PROTO_H4_BUY_07: те же число сделок и доля побед на OOS"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H4_BUY_09",
+   "name": "Прототип майнера H4 BUY #9",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H4.mqh",
+    "tf": "H4",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "long",
+   "timeframes": [
+    "H4"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "Ema5_8_Diff_Norm <= thr_1 AND MACD_Delta_Norm >= thr_2",
+   "entry_short": "",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": -0.031559,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог Ema5_8_Diff_Norm <="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": 0.392367,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог MACD_Delta_Norm >="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": 50.2,
+    "oos_wr": 51.0,
+    "oos_trades": 1463,
+    "est_oos_pf": 1.51
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": null,
+    "constitution_ok": false,
+    "notes": [
+     "доля побед на OOS 51.0% < 56% (требование AGENTS.md п.3.2); положительное матожидание не доказано: PF в файле оценочный (формула), сделки не проигрывались",
+     "в функции есть параметр tripleAlign, но условие тренда в правиле отсутствует",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H4_BUY_10",
+   "name": "Прототип майнера H4 BUY #10",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H4.mqh",
+    "tf": "H4",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "long",
+   "timeframes": [
+    "H4"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "MACD_Delta_Norm >= thr_1 AND Stoch_D <= thr_2",
+   "entry_short": "",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": 0.392367,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог MACD_Delta_Norm >="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": 34.000736,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог Stoch_D <="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": 50.6,
+    "oos_wr": 50.5,
+    "oos_trades": 1129,
+    "est_oos_pf": 1.48
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": null,
+    "constitution_ok": false,
+    "notes": [
+     "доля побед на OOS 50.5% < 56% (требование AGENTS.md п.3.2); положительное матожидание не доказано: PF в файле оценочный (формула), сделки не проигрывались",
+     "в функции есть параметр tripleAlign, но условие тренда в правиле отсутствует",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H4_SELL_11",
+   "name": "Прототип майнера H4 SELL #11",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H4.mqh",
+    "tf": "H4",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "short",
+   "timeframes": [
+    "H4"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "",
+   "entry_short": "tripleAlign == -1 AND VolRatio >= thr_1 AND OBV_Slope_Norm >= thr_2",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": 1.235698,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог VolRatio >="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": 0.397219,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог OBV_Slope_Norm >="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": 56.6,
+    "oos_wr": 57.4,
+    "oos_trades": 202,
+    "est_oos_pf": 1.29
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": null,
+    "constitution_ok": true,
+    "notes": [
+     "SELL и BUY используют одно условие tripleAlign == -1: проверить смысл флага",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "PROTO_H4_SELL_12",
+   "name": "Прототип майнера H4 SELL #12",
+   "source": {
+    "type": "prototype_miner",
+    "file": "rules/discovered_edges_H4.mqh",
+    "tf": "H4",
+    "year": 2026
+   },
+   "status": "prototype_unconfirmed",
+   "enabled_by_default": false,
+   "direction": "short",
+   "timeframes": [
+    "H4"
+   ],
+   "pairs": [
+    "pooled"
+   ],
+   "entry_long": "",
+   "entry_short": "tripleAlign == -1 AND RSI5 <= thr_1 AND CCI5 >= thr_2",
+   "exit_rule": "Target_RR из датасета (фиксированный TP/SL), не воспроизводится тестером OHLC",
+   "stop_rule": "",
+   "description": "Правило, найденное перебором пар признаков в mine_v3.cpp на квантованном кэше; признаки в кэше V3 (23 признака), в тестере OHLC не реализованы.",
+   "params": {
+    "thr_1": {
+     "type": "float",
+     "default": 93.478264,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог RSI5 <="
+    },
+    "thr_2": {
+     "type": "float",
+     "default": 138.461533,
+     "min": -1000000000.0,
+     "max": 1000000000.0,
+     "note": "порог CCI5 >="
+    }
+   },
+   "assumptions": [],
+   "implementation": null,
+   "metrics_claimed": {
+    "train_wr": 56.7,
+    "oos_wr": 56.7,
+    "oos_trades": 203,
+    "est_oos_pf": 1.25
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": null,
+    "constitution_ok": true,
+    "notes": [
+     "SELL и BUY используют одно условие tripleAlign == -1: проверить смысл флага",
+     "OOS использован для отбора из ~130 тыс. кандидатов: проверка вне выборки не чистая"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "EXAMPLE_RSI_PULLBACK_01",
+   "name": "Учебный пример формата: откат RSI по тренду старшего таймфрейма",
+   "source": {
+    "type": "example",
+    "note": "не идея из статьи; показывает, как записывается правило строкой условия"
+   },
+   "status": "example",
+   "enabled_by_default": false,
+   "direction": "both",
+   "timeframes": [
+    "H1"
+   ],
+   "pairs": [
+    "EURUSD"
+   ],
+   "entry_long": "RSI(период) ниже нижнего порога и цена выше EMA старшего таймфрейма H4",
+   "entry_short": "RSI(период) выше верхнего порога и цена ниже EMA старшего таймфрейма H4",
+   "entry_long_expr": "rsi < rsi_low AND close > ema_htf",
+   "entry_short_expr": "rsi > rsi_high AND close < ema_htf",
+   "exit_rule": "общий выход тестера: через 24 бара",
+   "stop_rule": "общий стоп тестера: 2 ATR(14)",
+   "description": "Пример для проверки движка условий и справочника индикаторов. Не оценивается по критериям приёмки и в результаты реестра не заносится.",
+   "inputs": [
+    {
+     "name": "rsi",
+     "indicator": "RSI",
+     "params": {
+      "period": "$rsi_period"
+     },
+     "source": "close"
+    },
+    {
+     "name": "ema_htf",
+     "indicator": "EMA",
+     "tf": "H4",
+     "params": {
+      "period": "$ema_period"
+     },
+     "source": "close"
+    }
+   ],
+   "params": {
+    "rsi_period": {
+     "type": "int",
+     "default": 14,
+     "min": 2,
+     "max": 100,
+     "note": "период RSI"
+    },
+    "rsi_low": {
+     "type": "float",
+     "default": 30,
+     "min": 1,
+     "max": 49,
+     "note": "нижний порог RSI"
+    },
+    "rsi_high": {
+     "type": "float",
+     "default": 70,
+     "min": 51,
+     "max": 99,
+     "note": "верхний порог RSI"
+    },
+    "ema_period": {
+     "type": "int",
+     "default": 50,
+     "min": 2,
+     "max": 400,
+     "note": "период EMA на H4"
+    }
+   },
+   "assumptions": [],
+   "implementation": {
+    "kind": "expr"
+   },
+   "audit": {
+    "lookahead": "checked by tester selftest",
+    "duplicate_of": null,
+    "constitution_ok": true,
+    "notes": [
+     "пример формата; индикатор старшего таймфрейма берётся по последнему закрытому бару"
+    ]
+   },
+   "results": []
+  },
+  {
+   "id": "LONDON_TRAP_01",
+   "name": "Лондонский капкан: вынос границы Азии против направления H1 и возврат",
+   "source": {
+    "type": "course",
+    "article_id": 0,
+    "url": "",
+    "title": "Классический след хозяина рынка (SniperPips), сетап №2 по code_artifact.md",
+    "year": 2026,
+    "spec_file": "registry/specs/LONDON_TRAP_01.md"
+   },
+   "status": "tested_fail",
+   "enabled_by_default": false,
+   "direction": "both",
+   "timeframes": [
+    "M5"
+   ],
+   "pairs": [
+    "EURUSD",
+    "GBPUSD",
+    "USDJPY"
+   ],
+   "entry_long": "H1 бычье; в 07:00–10:30 UTC вынос ниже коридора Азии на 0,15–1,20 ATR и возврат закрытием внутрь (не больше 3 свечей снаружи); вход на следующей свече",
+   "entry_short": "зеркально",
+   "exit_rule": "цель - противоположная граница коридора; безубыток на половине пути",
+   "stop_rule": "за экстремум выноса + спред + 0,15 ATR(14) M5",
+   "description": "Полный текст правил и допущений: registry/specs/LONDON_TRAP_01.md",
+   "params": {
+    "fractal_n": {
+     "type": "int",
+     "default": 3,
+     "min": 1,
+     "max": 10,
+     "note": "свечей слева и справа у свинга H1"
+    },
+    "asia_end_min": {
+     "type": "int",
+     "default": 420,
+     "min": 60,
+     "max": 720,
+     "note": "конец коридора Азии и начало окна, минуты от 00:00 UTC"
+    },
+    "window_end_min": {
+     "type": "int",
+     "default": 630,
+     "min": 120,
+     "max": 1020,
+     "note": "конец окна, минуты от 00:00 UTC"
+    },
+    "min_asia_bars": {
+     "type": "int",
+     "default": 72,
+     "min": 1,
+     "max": 288,
+     "note": "минимум свечей M5 в коридоре"
+    },
+    "asia_atr_max": {
+     "type": "float",
+     "default": 0.45,
+     "min": 0.05,
+     "max": 3.0,
+     "note": "ширина коридора в долях дневного ATR"
+    },
+    "atr_period": {
+     "type": "int",
+     "default": 14,
+     "min": 2,
+     "max": 100,
+     "note": "период ATR"
+    },
+    "sweep_min_atr": {
+     "type": "float",
+     "default": 0.15,
+     "min": 0.0,
+     "max": 5.0,
+     "note": "минимальная глубина выноса в ATR M5"
+    },
+    "sweep_max_atr": {
+     "type": "float",
+     "default": 1.2,
+     "min": 0.1,
+     "max": 20.0,
+     "note": "максимальная глубина выноса в ATR M5"
+    },
+    "max_outside": {
+     "type": "int",
+     "default": 3,
+     "min": 0,
+     "max": 50,
+     "note": "свечей подряд с закрытием за границей"
+    },
+    "sl_buffer_atr": {
+     "type": "float",
+     "default": 0.15,
+     "min": 0.0,
+     "max": 5.0,
+     "note": "запас стопа в ATR M5"
+    },
+    "min_rr": {
+     "type": "float",
+     "default": 3.0,
+     "min": 0.0,
+     "max": 20.0,
+     "note": "минимальная прибыль к риску"
+    },
+    "be_fraction": {
+     "type": "float",
+     "default": 0.5,
+     "min": 0.05,
+     "max": 1.0,
+     "note": "доля пути до цели для безубытка"
+    },
+    "spread_mult": {
+     "type": "float",
+     "default": 2.5,
+     "min": 1.0,
+     "max": 100.0,
+     "note": "предел спреда к среднему часа"
+    },
+    "spread_days": {
+     "type": "int",
+     "default": 20,
+     "min": 1,
+     "max": 250,
+     "note": "дней для среднего спреда"
+    },
+    "max_losses": {
+     "type": "int",
+     "default": 2,
+     "min": 1,
+     "max": 100,
+     "note": "убыточных сделок за сутки"
+    },
+    "max_entry_gap_min": {
+     "type": "int",
+     "default": 15,
+     "min": 0,
+     "max": 1440,
+     "note": "наибольший разрыв до свечи входа, минут"
+    }
+   },
+   "assumptions": [
+    "Все пункты, не заданные в документе, перечислены в registry/specs/LONDON_TRAP_01.md и записаны до первого прогона (2026-11-25)."
+   ],
+   "implementation": {
+    "language": "cpp",
+    "kind": "strategy",
+    "file": "tester/rules/london_trap.h",
+    "factory": "lt_run"
+   },
+   "audit": {
+    "lookahead": "ok",
+    "duplicate_of": null,
+    "constitution_ok": true,
+    "notes": [
+     "2026-11-25: проверка причинности (selftest, 8 точек среза, будущие свечи M5, H1, D1 и спред испорчены): расхождений 0.",
+     "2026-11-25: независимый расчёт на Python (tests/xcheck_london.py): 534 сделки по EURUSD, GBPUSD, USDJPY за весь отрезок прогона совпали одна к одной.",
+     "2026-11-25: разработка не пройдена ни на одной паре; экзамен не открывался."
+    ]
+   },
+   "results": [
+    {
+     "date": "2026-11-25",
+     "test": "london_trap_EURUSD_M5_wf",
+     "mode": "dev",
+     "role": "primary",
+     "pair": "EURUSD",
+     "timeframe": "M5",
+     "scheme": "6+2",
+     "overrides": "",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-07-01",
+      "to": "2024-12-31",
+      "trades": 225,
+      "win_pct": 13.78,
+      "net_pips": -175.8,
+      "profit_factor": 0.784,
+      "avg_R": -0.1809,
+      "max_dd_pips": 245.4,
+      "pos_windows": "11/27"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    },
+    {
+     "date": "2026-11-25",
+     "test": "london_trap_GBPUSD_M5_wf",
+     "mode": "dev",
+     "role": "primary",
+     "pair": "GBPUSD",
+     "timeframe": "M5",
+     "scheme": "6+2",
+     "overrides": "",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-07-01",
+      "to": "2024-12-31",
+      "trades": 202,
+      "win_pct": 27.72,
+      "net_pips": -59.6,
+      "profit_factor": 0.942,
+      "avg_R": -0.084,
+      "max_dd_pips": 117.7,
+      "pos_windows": "12/27"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    },
+    {
+     "date": "2026-11-25",
+     "test": "london_trap_USDJPY_M5_wf",
+     "mode": "dev",
+     "role": "primary",
+     "pair": "USDJPY",
+     "timeframe": "M5",
+     "scheme": "6+2",
+     "overrides": "",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-07-01",
+      "to": "2024-12-31",
+      "trades": 107,
+      "win_pct": 10.28,
+      "net_pips": -276.0,
+      "profit_factor": 0.483,
+      "avg_R": -0.3885,
+      "max_dd_pips": 276.0,
+      "pos_windows": "7/27"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    }
+   ]
+  },
+  {
+   "id": "CLASSIC_TRACE_01",
+   "name": "Классический след: сужающийся треугольник и вынос против направления H1",
+   "source": {
+    "type": "course",
+    "article_id": 0,
+    "url": "",
+    "title": "Классический след хозяина рынка (SniperPips), сетап №1 по code_artifact.md",
+    "year": 2026,
+    "spec_file": "registry/specs/CLASSIC_TRACE_01.md"
+   },
+   "status": "tested_fail",
+   "enabled_by_default": false,
+   "direction": "both",
+   "timeframes": [
+    "M5"
+   ],
+   "pairs": [
+    "EURUSD",
+    "GBPUSD",
+    "USDJPY"
+   ],
+   "entry_long": "H1 бычье; треугольник на M5; вынос ниже острия на 0,15–1,20 ATR и возврат; по рынку при ориентире слева, иначе лимитный ордер",
+   "entry_short": "зеркально",
+   "exit_rule": "цель - ближайший нетронутый ордер-блок или равные экстремумы на H1; безубыток на половине пути",
+   "stop_rule": "за экстремум выноса + спред + 0,15 ATR(14) M5",
+   "description": "Полный текст правил и допущений: registry/specs/CLASSIC_TRACE_01.md",
+   "params": {
+    "fractal_n": {
+     "type": "int",
+     "default": 3,
+     "min": 1,
+     "max": 10,
+     "note": "свечей слева и справа у свинга H1"
+    },
+    "atr_period": {
+     "type": "int",
+     "default": 14,
+     "min": 2,
+     "max": 100,
+     "note": "период ATR"
+    },
+    "sweep_min_atr": {
+     "type": "float",
+     "default": 0.15,
+     "min": 0.0,
+     "max": 5.0,
+     "note": "минимальная глубина выноса в ATR M5"
+    },
+    "sweep_max_atr": {
+     "type": "float",
+     "default": 1.2,
+     "min": 0.1,
+     "max": 20.0,
+     "note": "максимальная глубина выноса в ATR M5"
+    },
+    "max_outside": {
+     "type": "int",
+     "default": 3,
+     "min": 0,
+     "max": 50,
+     "note": "свечей подряд с закрытием за границей"
+    },
+    "sl_buffer_atr": {
+     "type": "float",
+     "default": 0.15,
+     "min": 0.0,
+     "max": 5.0,
+     "note": "запас стопа в ATR M5"
+    },
+    "min_rr": {
+     "type": "float",
+     "default": 3.0,
+     "min": 0.0,
+     "max": 20.0,
+     "note": "минимальная прибыль к риску"
+    },
+    "be_fraction": {
+     "type": "float",
+     "default": 0.5,
+     "min": 0.05,
+     "max": 1.0,
+     "note": "доля пути до цели для безубытка"
+    },
+    "spread_mult": {
+     "type": "float",
+     "default": 2.5,
+     "min": 1.0,
+     "max": 100.0,
+     "note": "предел спреда к среднему часа"
+    },
+    "spread_days": {
+     "type": "int",
+     "default": 20,
+     "min": 1,
+     "max": 250,
+     "note": "дней для среднего спреда"
+    },
+    "max_losses": {
+     "type": "int",
+     "default": 2,
+     "min": 1,
+     "max": 100,
+     "note": "убыточных сделок за сутки"
+    },
+    "max_entry_gap_min": {
+     "type": "int",
+     "default": 15,
+     "min": 0,
+     "max": 1440,
+     "note": "наибольший разрыв до свечи входа, минут"
+    },
+    "tri_min_bars": {
+     "type": "int",
+     "default": 12,
+     "min": 4,
+     "max": 200,
+     "note": "наименьшая длина треугольника"
+    },
+    "tri_max_bars": {
+     "type": "int",
+     "default": 30,
+     "min": 4,
+     "max": 300,
+     "note": "наибольшая длина треугольника"
+    },
+    "apex_bars": {
+     "type": "int",
+     "default": 6,
+     "min": 1,
+     "max": 50,
+     "note": "свечей в границах острия"
+    },
+    "tri_atr_bars": {
+     "type": "int",
+     "default": 3,
+     "min": 1,
+     "max": 20,
+     "note": "свечей в коротком ATR"
+    },
+    "tri_atr_max": {
+     "type": "float",
+     "default": 0.35,
+     "min": 0.01,
+     "max": 5.0,
+     "note": "короткий ATR к высоте левой половины"
+    },
+    "window_start_min": {
+     "type": "int",
+     "default": 420,
+     "min": 0,
+     "max": 1380,
+     "note": "начало окна, минуты UTC"
+    },
+    "window_end_min": {
+     "type": "int",
+     "default": 1020,
+     "min": 60,
+     "max": 1440,
+     "note": "конец окна, минуты UTC"
+    },
+    "limit_body_part": {
+     "type": "float",
+     "default": 0.5,
+     "min": 0.0,
+     "max": 1.0,
+     "note": "доля тела свечи выноса для лимитной цены"
+    },
+    "limit_ttl_bars": {
+     "type": "int",
+     "default": 5,
+     "min": 1,
+     "max": 100,
+     "note": "жизнь лимитного ордера, свечей"
+    },
+    "eq_spread_mult": {
+     "type": "float",
+     "default": 2.0,
+     "min": 0.0,
+     "max": 50.0,
+     "note": "допуск равных экстремумов в спредах"
+    }
+   },
+   "assumptions": [
+    "Все пункты, не заданные в документе, перечислены в registry/specs/CLASSIC_TRACE_01.md и записаны до первого прогона (2026-11-25)."
+   ],
+   "implementation": {
+    "language": "cpp",
+    "kind": "strategy",
+    "file": "tester/rules/classic_trace.h",
+    "factory": "ct_run"
+   },
+   "audit": {
+    "lookahead": "ok",
+    "duplicate_of": null,
+    "constitution_ok": true,
+    "notes": [
+     "2026-11-25: проверка причинности (selftest, 8 точек среза, будущие свечи M5, H1 и спред испорчены): расхождений 0.",
+     "2026-11-25: независимый расчёт на Python (tests/xcheck_classic.py): 2851 сделка по EURUSD, GBPUSD, USDJPY и все счётчики отбора совпали.",
+     "2026-11-25: при первой сверке разошёлся один счётчик выносов EURUSD из-за округления на границе отношения ровно 0,35; допуск сравнения задан 1e-9 в обеих программах, сделки не изменились.",
+     "2026-11-25: разработка не пройдена ни на одной паре (USDJPY: нетто больше нуля, профит-фактор 1,05); экзамен не открывался. Плюс USDJPY даёт только сделки длиннее суток, свопы не учтены."
+    ]
+   },
+   "results": [
+    {
+     "date": "2026-11-25",
+     "test": "classic_trace_EURUSD_M5_wf",
+     "mode": "dev",
+     "role": "primary",
+     "pair": "EURUSD",
+     "timeframe": "M5",
+     "scheme": "6+2",
+     "overrides": "",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-07-01",
+      "to": "2024-12-31",
+      "trades": 948,
+      "win_pct": 4.01,
+      "net_pips": -1446.5,
+      "profit_factor": 0.659,
+      "avg_R": -0.3034,
+      "max_dd_pips": 1559.0,
+      "pos_windows": "9/27"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    },
+    {
+     "date": "2026-11-25",
+     "test": "classic_trace_GBPUSD_M5_wf",
+     "mode": "dev",
+     "role": "primary",
+     "pair": "GBPUSD",
+     "timeframe": "M5",
+     "scheme": "6+2",
+     "overrides": "",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-07-01",
+      "to": "2024-12-31",
+      "trades": 957,
+      "win_pct": 7.63,
+      "net_pips": -1584.3,
+      "profit_factor": 0.748,
+      "avg_R": -0.2586,
+      "max_dd_pips": 2106.1,
+      "pos_windows": "8/27"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    },
+    {
+     "date": "2026-11-25",
+     "test": "classic_trace_USDJPY_M5_wf",
+     "mode": "dev",
+     "role": "primary",
+     "pair": "USDJPY",
+     "timeframe": "M5",
+     "scheme": "6+2",
+     "overrides": "",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-07-01",
+      "to": "2024-12-31",
+      "trades": 946,
+      "win_pct": 4.86,
+      "net_pips": 271.0,
+      "profit_factor": 1.048,
+      "avg_R": 0.2416,
+      "max_dd_pips": 1165.2,
+      "pos_windows": "11/27"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    }
+   ]
+  },
+  {
+   "id": "NY_CONTINUATION_01",
+   "name": "Продолжение в Нью-Йорк после неглубокого отката лондонского движения",
+   "source": {
+    "type": "course",
+    "article_id": 0,
+    "url": "",
+    "title": "Классический след хозяина рынка (SniperPips), сетап №3 по code_artifact.md",
+    "year": 2026,
+    "spec_file": "registry/specs/NY_CONTINUATION_01.md"
+   },
+   "status": "tested_fail",
+   "enabled_by_default": false,
+   "direction": "both",
+   "timeframes": [
+    "M5"
+   ],
+   "pairs": [
+    "EURUSD",
+    "GBPUSD",
+    "USDJPY"
+   ],
+   "entry_long": "H1 бычье; движение 07:00–12:00 вверх; откат 0,382–0,618; пробой свинг-максимума отката в 13:30–16:00",
+   "entry_short": "зеркально",
+   "exit_rule": "цель - ближайший нетронутый ордер-блок или равные экстремумы на H1; безубыток на половине пути",
+   "stop_rule": "за экстремум отката + спред + 0,15 ATR(14) M5",
+   "description": "Полный текст правил и допущений: registry/specs/NY_CONTINUATION_01.md",
+   "params": {
+    "fractal_n": {
+     "type": "int",
+     "default": 3,
+     "min": 1,
+     "max": 10,
+     "note": "свечей слева и справа у свинга H1"
+    },
+    "atr_period": {
+     "type": "int",
+     "default": 14,
+     "min": 2,
+     "max": 100,
+     "note": "период ATR"
+    },
+    "sl_buffer_atr": {
+     "type": "float",
+     "default": 0.15,
+     "min": 0.0,
+     "max": 5.0,
+     "note": "запас стопа в ATR M5"
+    },
+    "min_rr": {
+     "type": "float",
+     "default": 3.0,
+     "min": 0.0,
+     "max": 20.0,
+     "note": "минимальная прибыль к риску"
+    },
+    "be_fraction": {
+     "type": "float",
+     "default": 0.5,
+     "min": 0.05,
+     "max": 1.0,
+     "note": "доля пути до цели для безубытка"
+    },
+    "spread_mult": {
+     "type": "float",
+     "default": 2.5,
+     "min": 1.0,
+     "max": 100.0,
+     "note": "предел спреда к среднему часа"
+    },
+    "spread_days": {
+     "type": "int",
+     "default": 20,
+     "min": 1,
+     "max": 250,
+     "note": "дней для среднего спреда"
+    },
+    "max_losses": {
+     "type": "int",
+     "default": 2,
+     "min": 1,
+     "max": 100,
+     "note": "убыточных сделок за сутки"
+    },
+    "max_entry_gap_min": {
+     "type": "int",
+     "default": 15,
+     "min": 0,
+     "max": 1440,
+     "note": "наибольший разрыв до свечи входа, минут"
+    },
+    "eq_spread_mult": {
+     "type": "float",
+     "default": 2.0,
+     "min": 0.0,
+     "max": 50.0,
+     "note": "допуск равных экстремумов в спредах"
+    },
+    "box_start_min": {
+     "type": "int",
+     "default": 420,
+     "min": 0,
+     "max": 1380,
+     "note": "начало лондонской коробки, минуты UTC"
+    },
+    "box_end_min": {
+     "type": "int",
+     "default": 720,
+     "min": 60,
+     "max": 1380,
+     "note": "конец коробки и начало отката"
+    },
+    "pullback_end_min": {
+     "type": "int",
+     "default": 810,
+     "min": 60,
+     "max": 1410,
+     "note": "конец окна отката и начало входов"
+    },
+    "entry_end_min": {
+     "type": "int",
+     "default": 960,
+     "min": 60,
+     "max": 1440,
+     "note": "конец окна входов"
+    },
+    "min_box_bars": {
+     "type": "int",
+     "default": 50,
+     "min": 1,
+     "max": 288,
+     "note": "минимум свечей M5 в коробке"
+    },
+    "retrace_min": {
+     "type": "float",
+     "default": 0.382,
+     "min": 0.0,
+     "max": 1.0,
+     "note": "наименьшая глубина отката"
+    },
+    "retrace_max": {
+     "type": "float",
+     "default": 0.618,
+     "min": 0.0,
+     "max": 2.0,
+     "note": "наибольшая глубина отката в окне"
+    },
+    "retrace_close_max": {
+     "type": "float",
+     "default": 0.705,
+     "min": 0.0,
+     "max": 2.0,
+     "note": "глубже этого свечи не закрываются"
+    }
+   },
+   "assumptions": [
+    "Все пункты, не заданные в документе, перечислены в registry/specs/NY_CONTINUATION_01.md и записаны до первого прогона (2026-11-25)."
+   ],
+   "implementation": {
+    "language": "cpp",
+    "kind": "strategy",
+    "file": "tester/rules/ny_continuation.h",
+    "factory": "ny_run"
+   },
+   "audit": {
+    "lookahead": "ok",
+    "duplicate_of": null,
+    "constitution_ok": true,
+    "notes": [
+     "2026-11-25: проверка причинности (selftest, 8 точек среза, будущие свечи M5, H1 и спред испорчены): расхождений 0.",
+     "2026-11-25: независимый расчёт на Python (tests/xcheck_ny.py): 85 сделок по EURUSD, GBPUSD, USDJPY и все счётчики отбора совпали.",
+     "2026-11-25: разработка не пройдена ни на одной паре (сделок 24–35 при нужных 100; GBPUSD: нетто больше нуля, профит-фактор 1,26, без трёх лучших сделок минус); экзамен не открывался."
+    ]
+   },
+   "results": [
+    {
+     "date": "2026-11-25",
+     "test": "ny_continuation_EURUSD_M5_wf",
+     "mode": "dev",
+     "role": "primary",
+     "pair": "EURUSD",
+     "timeframe": "M5",
+     "scheme": "6+2",
+     "overrides": "",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-07-01",
+      "to": "2024-12-31",
+      "trades": 26,
+      "win_pct": 7.69,
+      "net_pips": -299.0,
+      "profit_factor": 0.378,
+      "avg_R": -0.5799,
+      "max_dd_pips": 339.1,
+      "pos_windows": "2/27"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    },
+    {
+     "date": "2026-11-25",
+     "test": "ny_continuation_GBPUSD_M5_wf",
+     "mode": "dev",
+     "role": "primary",
+     "pair": "GBPUSD",
+     "timeframe": "M5",
+     "scheme": "6+2",
+     "overrides": "",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-07-01",
+      "to": "2024-12-31",
+      "trades": 35,
+      "win_pct": 20.0,
+      "net_pips": 197.6,
+      "profit_factor": 1.256,
+      "avg_R": 0.2514,
+      "max_dd_pips": 266.1,
+      "pos_windows": "5/27"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    },
+    {
+     "date": "2026-11-25",
+     "test": "ny_continuation_USDJPY_M5_wf",
+     "mode": "dev",
+     "role": "primary",
+     "pair": "USDJPY",
+     "timeframe": "M5",
+     "scheme": "6+2",
+     "overrides": "",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-07-01",
+      "to": "2024-12-31",
+      "trades": 24,
+      "win_pct": 4.17,
+      "net_pips": -489.8,
+      "profit_factor": 0.182,
+      "avg_R": -0.8126,
+      "max_dd_pips": 525.0,
+      "pos_windows": "1/27"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    }
+   ]
+  },
+  {
+   "id": "XGB_WF_01",
+   "name": "XGBoost на 78 столбцах H1, скользящее обучение 6+2",
+   "source": {
+    "type": "model",
+    "article_id": 0,
+    "url": "",
+    "title": "Этап 3 плана: XGBoost на таблице индикаторов",
+    "year": 2026,
+    "spec_file": "registry/specs/XGB_WF_01.md"
+   },
+   "status": "tested_fail",
+   "enabled_by_default": false,
+   "direction": "both",
+   "timeframes": [
+    "H1"
+   ],
+   "pairs": [
+    "EURUSD",
+    "GBPUSD",
+    "USDJPY",
+    "AUDUSD",
+    "XAUUSD"
+   ],
+   "entry_long": "прогноз результата покупки не меньше порога и не меньше прогноза продажи",
+   "entry_short": "прогноз результата продажи не меньше порога и больше прогноза покупки",
+   "exit_rule": "через 24 бара",
+   "stop_rule": "2 × ATR(14)",
+   "description": "Полный текст: registry/specs/XGB_WF_01.md",
+   "params": {
+    "threshold_R": {
+     "type": "float",
+     "default": 0.1,
+     "min": 0.0,
+     "max": 5.0,
+     "note": "порог прогноза для входа, в R"
+    },
+    "rounds": {
+     "type": "int",
+     "default": 200,
+     "min": 1,
+     "max": 5000,
+     "note": "число деревьев"
+    },
+    "max_depth": {
+     "type": "int",
+     "default": 3,
+     "min": 1,
+     "max": 12,
+     "note": "глубина дерева"
+    },
+    "learning_rate": {
+     "type": "float",
+     "default": 0.03,
+     "min": 0.001,
+     "max": 1.0,
+     "note": "шаг"
+    },
+    "subsample": {
+     "type": "float",
+     "default": 0.8,
+     "min": 0.1,
+     "max": 1.0,
+     "note": "доля строк"
+    },
+    "colsample_bytree": {
+     "type": "float",
+     "default": 0.8,
+     "min": 0.1,
+     "max": 1.0,
+     "note": "доля столбцов"
+    },
+    "min_child_weight": {
+     "type": "float",
+     "default": 50,
+     "min": 0,
+     "max": 100000,
+     "note": "наименьший вес листа"
+    },
+    "reg_lambda": {
+     "type": "float",
+     "default": 1.0,
+     "min": 0.0,
+     "max": 1000.0,
+     "note": "штраф L2"
+    },
+    "seed": {
+     "type": "int",
+     "default": 42,
+     "min": 0,
+     "max": 1000000,
+     "note": "зерно случайных чисел"
+    }
+   },
+   "assumptions": [
+    "Все настройки записаны до первого прогона (2026-11-25), подбора нет."
+   ],
+   "implementation": {
+    "language": "python",
+    "kind": "signals",
+    "file": "ml/xgb_wf.py",
+    "factory": "train_predict"
+   },
+   "audit": {
+    "lookahead": "ok",
+    "duplicate_of": null,
+    "constitution_ok": true,
+    "notes": [
+     "2026-11-25: прогон на GitHub (xgboost 2.1.4, отчёт reports/cloud_tests.md, версия программ 07f3e11): замена будущих баров и столбцов мусором прогнозы не изменила ни в одном окне, расхождений тестера и Python 0.",
+     "2026-11-25: разработка не пройдена ни на одном инструменте (профит-фактор 0,91–1,01 при нужных 1,3); экзамен не открывался. Средний R и просадка в отчёт облака не входят и здесь не записаны.",
+     "2026-11-25: разбор XGB_DIAG_01 (версия программ e40f1f4): без расходов по пяти инструментам вместе 0,039 R на сделку, случайные сдвиги хуже в 96,9 % случаев, p = 0,032; по отдельным инструментам порог не пройден, второе сравнение p = 0,13."
+    ]
+   },
+   "results": [
+    {
+     "date": "2026-11-25",
+     "test": "xgb_EURUSD_H1_wf",
+     "mode": "dev",
+     "role": "primary",
+     "pair": "EURUSD",
+     "timeframe": "H1",
+     "scheme": "6+2",
+     "overrides": "",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-07-01",
+      "to": "2024-12-31",
+      "trades": 1600,
+      "win_pct": 36.69,
+      "net_pips": -1298.9,
+      "profit_factor": 0.948,
+      "pos_windows": "12/27"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    },
+    {
+     "date": "2026-11-25",
+     "test": "xgb_GBPUSD_H1_wf",
+     "mode": "dev",
+     "role": "primary",
+     "pair": "GBPUSD",
+     "timeframe": "H1",
+     "scheme": "6+2",
+     "overrides": "",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-07-01",
+      "to": "2024-12-31",
+      "trades": 1598,
+      "win_pct": 37.23,
+      "net_pips": -1744.7,
+      "profit_factor": 0.951,
+      "pos_windows": "11/27"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    },
+    {
+     "date": "2026-11-25",
+     "test": "xgb_USDJPY_H1_wf",
+     "mode": "dev",
+     "role": "primary",
+     "pair": "USDJPY",
+     "timeframe": "H1",
+     "scheme": "6+2",
+     "overrides": "",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-07-01",
+      "to": "2024-12-31",
+      "trades": 1629,
+      "win_pct": 36.59,
+      "net_pips": -1185.0,
+      "profit_factor": 0.968,
+      "pos_windows": "14/27"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    },
+    {
+     "date": "2026-11-25",
+     "test": "xgb_AUDUSD_H1_wf",
+     "mode": "dev",
+     "role": "primary",
+     "pair": "AUDUSD",
+     "timeframe": "H1",
+     "scheme": "6+2",
+     "overrides": "",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-11-01",
+      "to": "2024-12-31",
+      "trades": 1444,
+      "win_pct": 36.08,
+      "net_pips": -2076.1,
+      "profit_factor": 0.908,
+      "pos_windows": "9/25"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    },
+    {
+     "date": "2026-11-25",
+     "test": "xgb_XAUUSD_H1_wf",
+     "mode": "dev",
+     "role": "primary",
+     "pair": "XAUUSD",
+     "timeframe": "H1",
+     "scheme": "6+2",
+     "overrides": "",
+     "dev": {
+      "segment": "dev",
+      "from": "2020-07-01",
+      "to": "2024-12-31",
+      "trades": 1506,
+      "win_pct": 37.18,
+      "net_pips": 9977.4,
+      "profit_factor": 1.012,
+      "pos_windows": "13/27"
+     },
+     "verdict": "FAIL",
+     "tester": "tester 2.0"
+    }
+   ]
+  },
+  {
+   "id": "XGB_WF_02",
+   "name": "XGBoost на 78 столбцах H1, сделки до 120 баров, скользящее обучение 6+2",
+   "source": {
+    "type": "model",
+    "article_id": 0,
+    "url": "",
+    "title": "Вариант «Б»: XGB_WF_01 с более долгими сделками",
+    "year": 2026,
+    "spec_file": "registry/specs/XGB_WF_02.md"
+   },
+   "status": "implemented_untested",
+   "enabled_by_default": false,
+   "direction": "both",
+   "timeframes": [
+    "H1"
+   ],
+   "pairs": [
+    "EURUSD",
+    "GBPUSD",
+    "USDJPY",
+    "AUDUSD",
+    "XAUUSD"
+   ],
+   "entry_long": "прогноз результата покупки не меньше порога и не меньше прогноза продажи",
+   "entry_short": "прогноз результата продажи не меньше порога и больше прогноза покупки",
+   "exit_rule": "через 120 баров",
+   "stop_rule": "4 × ATR(14)",
+   "description": "Полный текст: registry/specs/XGB_WF_02.md",
+   "params": {
+    "threshold_R": {
+     "type": "float",
+     "default": 0.1,
+     "min": 0.0,
+     "max": 5.0,
+     "note": "порог прогноза для входа, в R"
+    },
+    "rounds": {
+     "type": "int",
+     "default": 200,
+     "min": 1,
+     "max": 5000,
+     "note": "число деревьев"
+    },
+    "max_depth": {
+     "type": "int",
+     "default": 3,
+     "min": 1,
+     "max": 12,
+     "note": "глубина дерева"
+    },
+    "learning_rate": {
+     "type": "float",
+     "default": 0.03,
+     "min": 0.001,
+     "max": 1.0,
+     "note": "шаг"
+    },
+    "subsample": {
+     "type": "float",
+     "default": 0.8,
+     "min": 0.1,
+     "max": 1.0,
+     "note": "доля строк"
+    },
+    "colsample_bytree": {
+     "type": "float",
+     "default": 0.8,
+     "min": 0.1,
+     "max": 1.0,
+     "note": "доля столбцов"
+    },
+    "min_child_weight": {
+     "type": "float",
+     "default": 50,
+     "min": 0,
+     "max": 100000,
+     "note": "наименьший вес листа"
+    },
+    "reg_lambda": {
+     "type": "float",
+     "default": 1.0,
+     "min": 0.0,
+     "max": 1000.0,
+     "note": "штраф L2"
+    },
+    "seed": {
+     "type": "int",
+     "default": 42,
+     "min": 0,
+     "max": 1000000,
+     "note": "зерно случайных чисел"
+    }
+   },
+   "assumptions": [
+    "Срок 120 баров и стоп 4 × ATR(14) утверждены и записаны до первого прогона (2026-11-25); остальное как в XGB_WF_01, подбора нет.",
+    "Свопы не учитываются: данных нет."
+   ],
+   "implementation": {
+    "language": "python",
+    "kind": "signals",
+    "file": "ml/xgb_wf.py",
+    "factory": "train_predict"
+   },
+   "audit": {
+    "lookahead": "unchecked",
+    "duplicate_of": null,
+    "constitution_ok": true,
+    "notes": []
+   },
+   "results": []
+  }
+ ]
+}

@@ -1,0 +1,68 @@
+name: Cloud database and tests
+# Облако само скачивает котировки из тех же открытых наборов, собирает бары, прогоняет тесты разработки
+# и сохраняет в репозиторий только отчёт. Котировки в репозиторий и в артефакты не выкладываются.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cloud_tests.yml'
+      - 'registry/cloud/**'
+      - 'registry/configs/**'
+      - 'registry/tester/**'
+permissions:
+  contents: write
+concurrency:
+  group: cloud-tests
+  cancel-in-progress: false
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install packages
+        run: pip install --quiet numpy pyarrow
+      - name: Restore ready bars from cache
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: cloud_baza
+          key: baza-v1-${{ hashFiles('registry/cloud/cloud_build.py', 'tools/build_baza.py', 'tools/build_ev.py', 'src/build_quotes.py') }}
+      - name: Build bars
+        id: build
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          failed=0
+          for s in EURUSD GBPUSD USDJPY AUDUSD XAUUSD; do
+            echo "::group::$s"
+            python -u registry/cloud/cloud_build.py "$s" cloud_baza || { echo "::error::build failed: $s"; failed=1; }
+            echo "::endgroup::"
+            df -h . | tail -1
+          done
+          exit $failed
+      - name: Save bars to cache
+        if: steps.cache.outputs.cache-hit != 'true' && steps.build.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: cloud_baza
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+      - name: Compare database and run tests
+        if: always()
+        run: python -u registry/cloud/cloud_test.py cloud_baza reports/cloud_tests.md
+      - name: Commit report
+        if: always()
+        run: |
+          [ -f reports/cloud_tests.md ] || exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add reports/cloud_tests.md
+          if git diff --cached --quiet; then echo "nothing to save"; exit 0; fi
+          git commit -m "Cloud tests report [skip ci]"
+          for i in 1 2 3; do git pull --rebase --autostash && git push && exit 0; sleep 10; done
+          echo "::error::report was not pushed"; exit 1

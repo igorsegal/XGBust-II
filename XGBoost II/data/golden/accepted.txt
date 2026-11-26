@@ -1,0 +1,2 @@
+96a6a5fb8c018ba0 qwen-plus 20261126-120326 верно 10 из 10
+96a6a5fb8c018ba0 openrouter:z-ai/glm-5.3-flash 20261126-125107 верно 10 из 10

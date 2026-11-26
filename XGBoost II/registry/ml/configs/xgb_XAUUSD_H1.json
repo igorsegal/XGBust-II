@@ -1,0 +1,35 @@
+{
+ "test_name": "xgb_XAUUSD_H1_wf",
+ "data": {
+  "bars_dir": "D:\\AHexaTrader\\1DataFiles\\BAZA",
+  "pair": "XAUUSD",
+  "timeframe": "H1"
+ },
+ "period": {
+  "train_months": 6,
+  "test_months": 2,
+  "step_months": 2,
+  "dev_from": "2020-01",
+  "exam_from": "2025-01",
+  "exam_to": "2026-04"
+ },
+ "costs": {
+  "commission_per_lot_usd": 7
+ },
+ "exits": {
+  "hold_bars": 24,
+  "stop_atr_mult": 2.0,
+  "atr_period": 14
+ },
+ "criteria": {
+  "min_trades": 100,
+  "min_profit_factor": 1.3
+ },
+ "rules": {
+  "XGB_WF_01": {
+   "enabled": true,
+   "params": {}
+  }
+ },
+ "role": "primary"
+}

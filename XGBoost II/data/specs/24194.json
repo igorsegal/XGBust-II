@@ -1,0 +1,42 @@
+{
+ "url": "https://www.mql5.com/en/articles/24194",
+ "title": "Defining your Edge (Part 4): Applying Isotonic Regression and PNN Price-Forecasting in an Expert Advisor",
+ "published_year": 2026,
+ "verdict": "PASS",
+ "reject_reason": "",
+ "formula_and_logic": "Entry is triggered when (1) the raw mode score exceeds neutrality by a margin ('raw > 0.5 + m_raw_gate') AND (2) the calibrated probability of upward movement (from isotonic regression alone, or blended with PNN depending on 'm_model_mode') is at least 'm_entry_probability'. The raw score is computed deterministically by exactly one of seven codified modes (selected via 'm_signal_mode'), each using only lagged OHLC and indicator values (RSI, Stochastic K/D) with fixed weights and thresholds. Isotonic calibration uses a leakage-safe historical window: labels are binary outcomes (1 if price rises over 'm_forecast_horizon' bars) computed from bars whose future outcome is known at the decision bar; PNN uses six explicit, normalized features including the raw mode score and contemporaneous indicators. The final long signal is 'LongCondition() != 0', which returns a vote proportional to the calibrated probability — but for rule extraction, the binary entry condition is 'ModeScore(idx) > 0.5 + m_raw_gate AND ProbabilityUp(idx) >= m_entry_probability'.",
+ "entry_long": "ModeScore(idx) > 0.5 + m_raw_gate AND ProbabilityUp(idx) >= m_entry_probability",
+ "entry_short": "ModeScore(idx) < 0.5 - m_raw_gate AND (1.0 - ProbabilityUp(idx)) >= m_entry_probability",
+ "exit_rule": "не указан в статье",
+ "stop_rule": "не указан в статье",
+ "parameters": {
+  "m_signal_mode": "не указан в статье",
+  "m_model_mode": "не указан в статье",
+  "m_period_rsi": "не указан в статье",
+  "m_period_k": "не указан в статье",
+  "m_period_d": "не указан в статье",
+  "m_slowing": "не указан в статье",
+  "m_method": "не указан в статье",
+  "m_price_field": "не указан в статье",
+  "m_rsi_low": "не указан в статье",
+  "m_rsi_high": "не указан в статье",
+  "m_stoch_low": "не указан в статье",
+  "m_stoch_high": "не указан в статье",
+  "m_pattern_lookback": "не указан в статье",
+  "m_calibration_window": "не указан в статье",
+  "m_forecast_horizon": "не указан в статье",
+  "m_entry_probability": "не указан в статье",
+  "m_raw_gate": "не указан в статье",
+  "m_pnn_samples": "не указан в статье",
+  "m_pnn_sigma": "не указан в статье",
+  "m_pnn_weight": "не указан в статье"
+ },
+ "timeframes": [
+  "не указан в статье"
+ ],
+ "forex_pairs": [
+  "не указан в статье"
+ ],
+ "author_oos_metrics": "автор не сообщает конкретных метрик вне выборки, только описывает архитектуру и логику калибровки и тестирования",
+ "summary": "Статья описывает детерминированное правило входа на основе семи модов сигналов, каждый из которых вычисляет нормированный [0,1] балл по фиксированным формулам на основе RSI, стохастика и ценовых характеристик. Вход в длинную позицию определяется двумя чёткими условиями: превышение сырого балла порога нейтральности с запасом и достижение калиброванной вероятности движения вверх заданного порога, где калибровка выполняется без утечки данных будущего. Выход и стоп не описаны, но это допустимо согласно критериям."
+}

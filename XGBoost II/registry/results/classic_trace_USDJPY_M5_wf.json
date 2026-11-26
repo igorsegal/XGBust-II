@@ -1,0 +1,17 @@
+{
+ "mode":"dev",
+ "tester":"tester 2.0",
+ "test_name":"classic_trace_USDJPY_M5_wf",
+ "pair":"USDJPY", "timeframe":"M5",
+ "role":"primary",
+ "scheme":"6+2",
+ "bars":372308, "history":"2020-01-01 .. 2024-12-31",
+ "costs":{"commission_per_lot_usd":7,"lot_units":100000,"spread":"по бару из файла"},
+ "exits":{"by_rule":true},
+ "rules":[
+  {"id":"CLASSIC_TRACE_01", "overrides":"", "signals_total":2658, "segments":[{"segment":"dev","from":"2020-07-01","to":"2024-12-31","trades":946,"win_pct":4.86,"net_pips":271.0,"profit_factor":1.048,"avg_R":0.2416,"max_dd_pips":1165.2,"pos_windows":"11/27"}],
+   "windows":[{"n":1,"from":"2020-07-01","to":"2020-08-31","trades":35,"net_pips":-83.5},{"n":2,"from":"2020-09-01","to":"2020-10-31","trades":38,"net_pips":-78.0},{"n":3,"from":"2020-11-01","to":"2020-12-31","trades":5,"net_pips":-15.9},{"n":4,"from":"2021-01-01","to":"2021-02-28","trades":15,"net_pips":256.8},{"n":5,"from":"2021-03-01","to":"2021-04-30","trades":28,"net_pips":246.7},{"n":6,"from":"2021-05-01","to":"2021-06-30","trades":47,"net_pips":-126.5},{"n":7,"from":"2021-07-01","to":"2021-08-31","trades":41,"net_pips":-21.6},{"n":8,"from":"2021-09-01","to":"2021-10-31","trades":33,"net_pips":-27.2},{"n":9,"from":"2021-11-01","to":"2021-12-31","trades":31,"net_pips":32.4},{"n":10,"from":"2022-01-01","to":"2022-02-28","trades":39,"net_pips":-151.7},{"n":11,"from":"2022-03-01","to":"2022-04-30","trades":25,"net_pips":-53.2},{"n":12,"from":"2022-05-01","to":"2022-06-30","trades":36,"net_pips":-195.2},{"n":13,"from":"2022-07-01","to":"2022-08-31","trades":43,"net_pips":288.1},{"n":14,"from":"2022-09-01","to":"2022-10-31","trades":20,"net_pips":267.5},{"n":15,"from":"2022-11-01","to":"2022-12-31","trades":48,"net_pips":-270.9},{"n":16,"from":"2023-01-01","to":"2023-02-28","trades":35,"net_pips":-189.2},{"n":17,"from":"2023-03-01","to":"2023-04-30","trades":46,"net_pips":-117.5},{"n":18,"from":"2023-05-01","to":"2023-06-30","trades":62,"net_pips":-405.4},{"n":19,"from":"2023-07-01","to":"2023-08-31","trades":39,"net_pips":269.1},{"n":20,"from":"2023-09-01","to":"2023-10-31","trades":39,"net_pips":-123.2},{"n":21,"from":"2023-11-01","to":"2023-12-31","trades":40,"net_pips":-210.7},{"n":22,"from":"2024-01-01","to":"2024-02-29","trades":40,"net_pips":54.1},{"n":23,"from":"2024-03-01","to":"2024-04-30","trades":24,"net_pips":104.4},{"n":24,"from":"2024-05-01","to":"2024-06-30","trades":21,"net_pips":-99.3},{"n":25,"from":"2024-07-01","to":"2024-08-31","trades":41,"net_pips":405.8},{"n":26,"from":"2024-09-01","to":"2024-10-31","trades":44,"net_pips":15.2},{"n":27,"from":"2024-11-01","to":"2024-12-31","trades":31,"net_pips":500.0}],
+   "funnel":{"breakouts":5715,"true_moves":1793,"returns":2658,"rej_spread":12,"rej_busy":748,"rej_losses":386,"landmark":120,"rej_gap":0,"rej_target":372,"rej_rr":19,"limit_placed":1033,"limit_dropped":175,"entries_market":88,"entries_limit":858},
+   "verdict":"FAIL"}
+ ]
+}

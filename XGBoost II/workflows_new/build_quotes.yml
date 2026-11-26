@@ -1,0 +1,62 @@
+name: Build quotes database (EURUSD)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/build_quotes.py'
+      - '.github/workflows/build_quotes.yml'
+permissions:
+  contents: write
+concurrency:
+  group: build-quotes
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Look for ready bars in cache
+        id: bars
+        uses: actions/cache/restore@v4
+        with:
+          path: data/quotes/EURUSD/*.bin
+          key: bars-eurusd-v1-${{ hashFiles('src/build_quotes.py') }}
+          lookup-only: true
+      - name: Look for ready ticks in cache
+        id: ticks
+        uses: actions/cache/restore@v4
+        with:
+          path: data/quotes/EURUSD/ticks
+          key: ticks-eurusd-v1-${{ hashFiles('src/build_quotes.py') }}
+          lookup-only: true
+      - uses: actions/setup-python@v5
+        if: steps.bars.outputs.cache-hit != 'true' || steps.ticks.outputs.cache-hit != 'true'
+        with:
+          python-version: '3.12'
+      - name: Build ticks and bars
+        if: steps.bars.outputs.cache-hit != 'true' || steps.ticks.outputs.cache-hit != 'true'
+        run: |
+          pip install --quiet numpy pyarrow
+          python src/build_quotes.py --out data/quotes --report reports/quotes_EURUSD.md
+          du -sh data/quotes && df -h .
+      - name: Save bars to cache
+        if: steps.bars.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: data/quotes/EURUSD/*.bin
+          key: ${{ steps.bars.outputs.cache-primary-key }}
+      - name: Save ticks to cache
+        if: steps.ticks.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: data/quotes/EURUSD/ticks
+          key: ${{ steps.ticks.outputs.cache-primary-key }}
+      - name: Commit report
+        if: steps.bars.outputs.cache-hit != 'true' || steps.ticks.outputs.cache-hit != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add reports/quotes_EURUSD.md
+          git diff --cached --quiet || git commit -m "Quotes database report [skip ci]"
+          git pull --rebase
+          git push

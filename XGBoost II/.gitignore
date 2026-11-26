@@ -1,0 +1,13 @@
+*.exe
+data/cache/v3_quant_M5.bin
+dashscope_key.txt
+data_test/
+run_log.txt
+install_log.txt
+READY.txt
+data/debug/
+__pycache__/
+*.pyc
+data/cache/
+openrouter_key.txt
+*_key.txt

@@ -1,0 +1,13 @@
+{
+ "tester":"tester 1.0",
+ "test_name":"hedge_GBPUSD_H1",
+ "pair":"GBPUSD", "timeframe":"H1",
+ "role":"stability",
+ "bars":55011, "history":"2007-11-07 .. 2026-08-21",
+ "period":"2021-08-23 .. 2026-08-22",
+ "costs":{"commission_price":0.000070, "spread":"по бару из файла"},
+ "exits":{"hold_bars":24,"stop_atr_mult":2.000000},
+ "rules":[
+  {"id":"HEDGE_ENS_01", "overrides":"", "signals_total":11635, "segments":[{"segment":"train","trades":533,"win_pct":38.46,"net_pips":1344.2,"profit_factor":1.117,"avg_R":0.0291,"max_dd_pips":623.8,"pos_quarters":"7/13"},{"segment":"validation","trades":184,"win_pct":33.70,"net_pips":-1078.2,"profit_factor":0.741,"avg_R":-0.1572,"max_dd_pips":1483.3,"pos_quarters":"1/5"},{"segment":"clean","trades":161,"win_pct":34.78,"net_pips":-254.3,"profit_factor":0.915,"avg_R":-0.0797,"max_dd_pips":682.3,"pos_quarters":"2/5"}], "verdict":"FAIL"}
+ ]
+}

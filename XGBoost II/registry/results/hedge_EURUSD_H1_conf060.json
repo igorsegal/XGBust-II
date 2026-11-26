@@ -1,0 +1,13 @@
+{
+ "tester":"tester 1.0",
+ "test_name":"hedge_EURUSD_H1_conf060",
+ "pair":"EURUSD", "timeframe":"H1",
+ "role":"sensitivity",
+ "bars":54987, "history":"2007-11-07 .. 2026-08-21",
+ "period":"2021-08-23 .. 2026-08-22",
+ "costs":{"commission_price":0.000070, "spread":"по бару из файла"},
+ "exits":{"hold_bars":24,"stop_atr_mult":2.000000},
+ "rules":[
+  {"id":"HEDGE_ENS_01", "overrides":"confidence=0.600000 ", "signals_total":10172, "segments":[{"segment":"train","trades":531,"win_pct":38.79,"net_pips":243.0,"profit_factor":1.028,"avg_R":0.0081,"max_dd_pips":1156.3,"pos_quarters":"6/13"},{"segment":"validation","trades":168,"win_pct":39.29,"net_pips":-628.9,"profit_factor":0.801,"avg_R":-0.0677,"max_dd_pips":1001.9,"pos_quarters":"1/5"},{"segment":"clean","trades":176,"win_pct":40.34,"net_pips":146.2,"profit_factor":1.062,"avg_R":0.0059,"max_dd_pips":490.6,"pos_quarters":"3/5"}], "verdict":"FAIL"}
+ ]
+}

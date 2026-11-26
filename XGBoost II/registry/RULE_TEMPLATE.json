@@ -1,0 +1,44 @@
+{
+ "id": "NEW_RULE_01",
+ "name": "Короткое название",
+ "source": {
+  "type": "article",
+  "article_id": 0,
+  "url": "",
+  "title": "",
+  "year": 2026,
+  "spec_file": ""
+ },
+ "status": "spec_ready",
+ "enabled_by_default": false,
+ "direction": "both",
+ "timeframes": [
+  "H1"
+ ],
+ "pairs": [
+  "EURUSD"
+ ],
+ "entry_long": "",
+ "entry_short": "",
+ "exit_rule": "не указан в статье: общий выход тестера",
+ "stop_rule": "не указан в статье: общий стоп тестера",
+ "description": "",
+ "params": {
+  "example_period": {
+   "type": "int",
+   "default": 14,
+   "min": 2,
+   "max": 200,
+   "note": ""
+  }
+ },
+ "assumptions": [],
+ "implementation": null,
+ "audit": {
+  "lookahead": "unchecked",
+  "duplicate_of": null,
+  "constitution_ok": true,
+  "notes": []
+ },
+ "results": []
+}

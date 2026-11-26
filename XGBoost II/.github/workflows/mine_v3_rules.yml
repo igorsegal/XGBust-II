@@ -1,0 +1,49 @@
+﻿name: Mine V3 Rules on Cache
+on:
+  workflow_dispatch:
+    inputs:
+      timeframe:
+        description: 'Таймфрейм (M5, M15, M30, H1, H4, D1)'
+        required: true
+        default: 'H1'
+        type: choice
+        options:
+          - H1
+          - H4
+          - M15
+          - M30
+          - D1
+          - M5
+permissions:
+  contents: write
+jobs:
+  mine:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Download M5 cache if M5 selected
+        if: github.event.inputs.timeframe == 'M5'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download v3-cache -p "v3_quant_M5.bin" -D data/cache/ --clobber
+      - name: Compile C++20 V3 Miner
+        run: |
+          g++ -O3 -std=c++20 -fopenmp src/mine_v3.cpp -o mine_v3
+      - name: Run Mining on Binary Cache
+        run: |
+          TF="${{ github.event.inputs.timeframe }}"
+          if [ "$TF" = "M5" ]; then
+            CACHE="data/cache/v3_quant_M5.bin"
+          else
+            CACHE="data/cache/v3_quant_HTF.bin"
+          fi
+          ./mine_v3 "$CACHE" "$TF" "rules/discovered_edges_${TF}.mqh" | tee mine_report.txt
+      - name: Commit discovered rules
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add rules/
+          git diff --staged --quiet || git commit -m "Auto-discovered OOS rules for ${{ github.event.inputs.timeframe }}"
+          git push
